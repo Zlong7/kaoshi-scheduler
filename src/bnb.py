@@ -1,10 +1,10 @@
 import heapq
+import time
 from src.greedy import color_greedy
 
 
-def color_bnb(G):
+def color_bnb(G, time_limit=30):
     n = len(G)
-    # 贪心求初始上界 (原顺序)
     bestK, greedy_sol = color_greedy(G)
     bnb_sol = None
 
@@ -15,10 +15,14 @@ def color_bnb(G):
     pop_count = 0
     prune_count = 0
 
-    # 初始状态，一个颜色都没用，used = 0
     heap = [(0, 0, [])]
+    start_time = time.time()
 
     while heap:
+        # 【内置超时检查】每次出堆检查一下时间
+        if time.time() - start_time > time_limit:
+            raise TimeoutError("分支限界搜索超时")
+
         used, idx, coloring = heapq.heappop(heap)
         pop_count += 1
 
@@ -28,7 +32,7 @@ def color_bnb(G):
 
         if idx == n:
             bestK = used
-            bnb_sol = coloring  # 记录的是 order 顺序的解
+            bnb_sol = coloring
             continue
 
         for c in range(min(used + 1, bestK)):
@@ -46,14 +50,11 @@ def color_bnb(G):
                 else:
                     prune_count += 1
 
-    # 【修复点】根据是否有 BnB 解来决定映射
     if bnb_sol is not None:
-        # 如果 BnB 找到了更优解（或同优解），需要把 order 映射回原数组
         final_sol = [-1] * n
         for i, c in enumerate(bnb_sol):
             final_sol[order[i]] = c
     else:
-        # 如果 BnB 没找到，直接用贪心解
         final_sol = greedy_sol
 
     return bestK, final_sol, pop_count, push_count, prune_count
