@@ -5,48 +5,70 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
-# 汇总数据
-data = {} # data[n][method] = {'times': [], 'nodes': []}
+data = {}
 
 with open("report/results_raw.csv", encoding="utf-8") as f:
     for row in csv.DictReader(f):
         n, method = int(row["Size"]), row["Method"]
-        if n not in data: data[n] = {'backtrack': {'times': [], 'nodes': []}, 'bnb': {'times': [], 'nodes': []}}
-        data[n][method]['times'].append(float(row["Time(s)"]))
-        data[n][method]['nodes'].append(int(row["Nodes"]))
+        if n not in data:
+            data[n] = {'backtrack': {'times': [], 'nodes': []}, 'bnb': {'times': [], 'nodes': []}}
+
+        t = float(row["Time(s)"])
+        nodes = int(row["Nodes"])
+
+        # 耗时：把正常和超时（=30）分开记录
+        if t < 30.0:
+            data[n][method]['times'].append(t)
+        else:
+            data[n][method]['times'].append(30.0)
+
+        # 节点：只记录真正跑出来的节点数
+        if nodes != -1:
+            data[n][method]['nodes'].append(nodes)
 
 sizes = sorted(data.keys())
-bt_t = [statistics.mean(data[n]['backtrack']['times']) for n in sizes]
-bt_t_err = [statistics.stdev(data[n]['backtrack']['times']) if len(data[n]['backtrack']['times'])>1 else 0 for n in sizes]
-bnb_t = [statistics.mean(data[n]['bnb']['times']) for n in sizes]
-bnb_t_err = [statistics.stdev(data[n]['bnb']['times']) if len(data[n]['bnb']['times'])>1 else 0 for n in sizes]
 
-# 1. 耗时对比图
+# ---------- 图1：耗时对比 ----------
+bt_t = [statistics.mean(data[n]['backtrack']['times']) for n in sizes]
+bnb_t = [statistics.mean(data[n]['bnb']['times']) for n in sizes]
+
 plt.figure(figsize=(10, 5))
-plt.errorbar(sizes, bt_t, yerr=bt_t_err, marker='o', label='回溯法', capsize=5)
-plt.errorbar(sizes, bnb_t, yerr=bnb_t_err, marker='s', label='分支限界', capsize=5)
-plt.yscale('log') # 【精修】对数坐标
-plt.xticks(sizes) # 强制刻度为实际规模
-plt.title("算法耗时对比 (对数坐标, 每规模5个随机图, p=0.3, 30s超时)")
+plt.plot(sizes, bt_t, marker='o', label='回溯法平均耗时')
+plt.plot(sizes, bnb_t, marker='s', label='分支限界平均耗时')
+plt.yscale('log')
+plt.xticks(sizes)
+plt.title("算法平均耗时对比 (对数坐标, p=0.3, 上限30s)")
 plt.xlabel("课程数量 (n)")
 plt.ylabel("平均耗时 (秒) - 对数轴")
-plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6, which='both')
+plt.legend()
 plt.savefig("report/time_compare.png", dpi=300)
 plt.show()
 
-# 2. 节点数对比图
-bt_n = [statistics.mean(data[n]['backtrack']['nodes']) for n in sizes]
-bnb_n = [statistics.mean(data[n]['bnb']['nodes']) for n in sizes]
+# ---------- 图2：节点数对比（仅看成功样本） ----------
+bt_n, bnb_n = [], []
+for n in sizes:
+    bt_valid = data[n]['backtrack']['nodes']
+    bnb_valid = data[n]['bnb']['nodes']
+    bt_n.append(statistics.mean(bt_valid) if bt_valid else None)
+    bnb_n.append(statistics.mean(bnb_valid) if bnb_valid else None)
+
 plt.figure(figsize=(10, 5))
-plt.plot(sizes, bt_n, marker='o', label='回溯法')
-plt.plot(sizes, bnb_n, marker='s', label='分支限界')
-plt.yscale('log') # 【精修】对数坐标
+# 只画有成功样本的点
+valid_bt_x = [sizes[i] for i in range(len(sizes)) if bt_n[i] is not None]
+valid_bt_y = [v for v in bt_n if v is not None]
+valid_bnb_x = [sizes[i] for i in range(len(sizes)) if bnb_n[i] is not None]
+valid_bnb_y = [v for v in bnb_n if v is not None]
+
+plt.plot(valid_bt_x, valid_bt_y, marker='o', label='回溯法平均节点数')
+plt.plot(valid_bnb_x, valid_bnb_y, marker='s', label='分支限界平均节点数')
+
+plt.yscale('log')
 plt.xticks(sizes)
-plt.title("搜索节点数对比 (对数坐标, 每规模5个随机图, p=0.3)")
+plt.title("成功求解样本的搜索节点数对比 (对数坐标, p=0.3)")
 plt.xlabel("课程数量 (n)")
 plt.ylabel("平均搜索节点数 - 对数轴")
-plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6, which='both')
+plt.legend()
 plt.savefig("report/nodes_compare.png", dpi=300)
 plt.show()
