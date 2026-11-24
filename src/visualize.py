@@ -3,7 +3,7 @@ from src.io_utils import read_graph, build_adj_matrix
 from src.backtrack import color_backtrack
 
 # 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'sans-serif']
 plt.rcParams['axes.unicode_minus'] = False
 
 
